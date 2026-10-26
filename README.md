@@ -1,6 +1,6 @@
-# Orbit — microservices e-commerce platform (two-session capstone)
+# Orbit — microservices e-commerce platform
 
-A complete, real microservices application that ties together everything: **microservices + Docker + docker-compose + CI/CD + Terraform (AWS) + Kubernetes**. Built to be walked through across two 3-hour sessions.
+A complete, real microservices application that ties together **microservices + Docker + docker-compose + CI/CD + Terraform (AWS) + Kubernetes**.
 
 ## Architecture
 **Microservices (local, docker-compose):**
@@ -50,50 +50,39 @@ orbit/
 
 ---
 
-## Session 1 — build & run locally (microservices + Docker + compose + CI)
-1. Tour the architecture and each microservice's code (gateway → auth → catalog → cart → orders → notifications → web).
-2. Read each **Dockerfile**.
-3. Run it all:
-   ```bash
-   cp .env.example .env
-   docker compose up --build
-   ```
-4. Open the store at **http://localhost:3000**, register, add to cart, place an order.
-   - Watch the event flow: `docker compose logs -f notifications` prints the order confirmation.
-   - RabbitMQ console: http://localhost:15672 (orbit / orbit).
-5. Walk the **CI** workflow (`.github/workflows/ci.yml`): builds every service image and validates compose.
-
-## Session 2 — ship it (Terraform + Kubernetes + CD)
-1. **Terraform** (`infra/terraform/`) — provision AWS: VPC, EKS, RDS, ElastiCache, ECR.
-   ```bash
-   cd infra/terraform
-   export TF_VAR_db_password='...'
-   terraform init
-   terraform plan
-   terraform apply
-   ```
-2. **Kubernetes** (`k8s/`) — deploy the same platform to a cluster (local minikube or EKS).
-   - Local (minikube): build images in, then apply.
-     ```bash
-     eval $(minikube docker-env)
-     for s in gateway auth catalog cart orders notifications; do docker build -t orbit-$s:latest ./services/$s; done
-     docker build -t orbit-web:latest ./web
-     kubectl apply -k k8s/
-     kubectl get pods -n orbit -w
-     minikube service web -n orbit
-     ```
-3. **CD** (`.github/workflows/cd.yml`) — on push to `main`, build+push images to **ECR** and `kubectl apply -k k8s/` + roll out new images to **EKS**.
-
----
-
-## Local run — quick reference
+## Run locally (Docker Compose)
 ```bash
+cp .env.example .env
 docker compose up --build        # start everything
 # open http://localhost:3000
-docker compose logs -f notifications
+docker compose logs -f notifications   # watch order events
 docker compose down              # stop (keep data)
 docker compose down -v           # stop + wipe volumes
 ```
+- Open the store at **http://localhost:3000**, register, add to cart, place an order.
+- RabbitMQ console: **http://localhost:15672** (orbit / orbit).
+
+## Deploy to AWS (Terraform)
+Provision VPC + EKS + RDS (Postgres) + ElastiCache (Redis) + ECR:
+```bash
+cd infra/terraform
+export TF_VAR_db_password='...'
+terraform init
+terraform plan
+terraform apply
+```
+
+## Deploy to Kubernetes
+Local (minikube) — build the images into the cluster, then apply:
+```bash
+eval $(minikube docker-env)
+for s in gateway auth catalog cart orders notifications; do docker build -t orbit-$s:latest ./services/$s; done
+docker build -t orbit-web:latest ./web
+kubectl apply -k k8s/
+kubectl get pods -n orbit -w
+minikube service web -n orbit
+```
+On EKS, the **CD** workflow (`.github/workflows/cd.yml`) builds and pushes images to **ECR** on push to `main`, then `kubectl apply -k k8s/` and rolls out the new images.
 
 ## Notes
 - Default dev secrets live in `.env.example` — change `JWT_SECRET` and passwords for anything real.
