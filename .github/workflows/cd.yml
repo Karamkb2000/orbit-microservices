@@ -1,7 +1,9 @@
 name: cd
 
 on:
-  push:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -16,6 +18,7 @@ env:
 jobs:
   guard:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
       enabled: ${{ steps.check.outputs.enabled }}
     steps:
