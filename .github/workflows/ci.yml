@@ -30,7 +30,7 @@ jobs:
         run: npm install
       - name: Syntax check
         working-directory: services/${{ matrix.service }}
-        run: node --check src/*.js || for f in src/*.js; do node --check "$f"; done
+        run: for f in src/*.js; do node --check "$f"; done
       - name: Docker build
         run: docker build -t orbit-${{ matrix.service }}:ci ./services/${{ matrix.service }}
 
