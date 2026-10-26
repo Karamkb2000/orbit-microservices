@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifications
+  namespace: orbit
+  labels: { app: notifications, tier: worker }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: notifications }
+  template:
+    metadata:
+      labels: { app: notifications, tier: worker }
+    spec:
+      containers:
+        - name: notifications
+          image: orbit-notifications:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: RABBITMQ_URL
+              value: amqp://orbit:orbit@broker:5672
+          resources:
+            requests: { cpu: 50m, memory: 48Mi }
+            limits: { cpu: 200m, memory: 96Mi }

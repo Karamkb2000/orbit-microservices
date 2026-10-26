@@ -1,0 +1,60 @@
+name: cd
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: eu-west-1
+  EKS_CLUSTER: orbit-eks
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [gateway, auth, catalog, cart, orders, notifications, web]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          CTX="./services/${{ matrix.service }}"
+          if [ "${{ matrix.service }}" = "web" ]; then CTX="./web"; fi
+          docker build -t "$REGISTRY/orbit-${{ matrix.service }}:$IMAGE_TAG" "$CTX"
+          docker push "$REGISTRY/orbit-${{ matrix.service }}:$IMAGE_TAG"
+
+  deploy:
+    needs: build-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name "$EKS_CLUSTER" --region "$AWS_REGION"
+      - name: Deploy manifests
+        run: kubectl apply -k k8s/
+      - name: Roll out new images
+        run: |
+          REGISTRY=$(aws ecr describe-registry --query registryId --output text).dkr.ecr.$AWS_REGION.amazonaws.com
+          for s in gateway auth catalog cart orders notifications web; do
+            kubectl set image deployment/$s $s=$REGISTRY/orbit-$s:$IMAGE_TAG -n orbit || true
+          done
+          kubectl rollout status deployment/gateway -n orbit

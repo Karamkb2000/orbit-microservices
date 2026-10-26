@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart
+  namespace: orbit
+  labels: { app: cart, tier: api }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: cart }
+  template:
+    metadata:
+      labels: { app: cart, tier: api }
+    spec:
+      containers:
+        - name: cart
+          image: orbit-cart:latest
+          imagePullPolicy: IfNotPresent
+          ports: [ { containerPort: 4003 } ]
+          env:
+            - { name: PORT, value: "4003" }
+            - { name: REDIS_URL, value: redis://cart-cache:6379 }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: orbit-secrets, key: JWT_SECRET } }
+          readinessProbe:
+            httpGet: { path: /health, port: 4003 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: 4003 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 300m, memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cart
+  namespace: orbit
+spec:
+  selector: { app: cart }
+  ports: [ { port: 4003, targetPort: 4003 } ]

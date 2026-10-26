@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth
+  namespace: orbit
+  labels: { app: auth, tier: api }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: auth }
+  template:
+    metadata:
+      labels: { app: auth, tier: api }
+    spec:
+      containers:
+        - name: auth
+          image: orbit-auth:latest
+          imagePullPolicy: IfNotPresent
+          ports: [ { containerPort: 4001 } ]
+          env:
+            - { name: PORT, value: "4001" }
+            - { name: PGHOST, value: auth-db }
+            - { name: PGDATABASE, value: auth }
+            - name: PGUSER
+              valueFrom: { configMapKeyRef: { name: orbit-config, key: POSTGRES_USER } }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: orbit-secrets, key: POSTGRES_PASSWORD } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: orbit-secrets, key: JWT_SECRET } }
+          readinessProbe:
+            httpGet: { path: /health, port: 4001 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: 4001 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 300m, memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth
+  namespace: orbit
+spec:
+  selector: { app: auth }
+  ports: [ { port: 4001, targetPort: 4001 } ]

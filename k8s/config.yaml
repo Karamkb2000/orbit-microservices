@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: orbit-secrets
+  namespace: orbit
+type: Opaque
+stringData:
+  JWT_SECRET: super-secret-change-me
+  POSTGRES_PASSWORD: orbit
+  RABBITMQ_PASSWORD: orbit
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orbit-config
+  namespace: orbit
+data:
+  POSTGRES_USER: orbit
+  RABBITMQ_USER: orbit

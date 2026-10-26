@@ -1,0 +1,10 @@
+{
+  "name": "orbit-notifications",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/worker.js",
+  "scripts": { "start": "node src/worker.js" },
+  "dependencies": {
+    "amqplib": "^0.10.4"
+  }
+}

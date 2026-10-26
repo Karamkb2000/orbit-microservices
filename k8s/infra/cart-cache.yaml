@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart-cache
+  namespace: orbit
+  labels:
+    app: cart-cache
+    tier: data
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cart-cache
+  template:
+    metadata:
+      labels:
+        app: cart-cache
+        tier: data
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 50m, memory: 32Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cart-cache
+  namespace: orbit
+spec:
+  selector:
+    app: cart-cache
+  ports:
+    - port: 6379
+      targetPort: 6379

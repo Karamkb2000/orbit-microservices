@@ -1,0 +1,13 @@
+region             = "eu-west-1"
+project            = "orbit"
+vpc_cidr           = "10.40.0.0/16"
+az_count           = 2
+cluster_version    = "1.30"
+node_instance_type = "t3.medium"
+node_desired       = 2
+node_min           = 2
+node_max           = 4
+db_username        = "orbit"
+db_password        = "ChangeMe_In_Real_Life_123"
+db_instance_class  = "db.t3.micro"
+redis_node_type    = "cache.t3.micro"

@@ -1,0 +1,15 @@
+resource "aws_ecr_repository" "this" {
+  for_each = toset(var.services)
+
+  name                 = "${var.project}-${each.value}"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = true
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name = "${var.project}-${each.value}"
+  }
+}

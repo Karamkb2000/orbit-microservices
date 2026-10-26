@@ -1,0 +1,144 @@
+name: orbit
+
+services:
+  web:
+    build: ./web
+    image: orbit-web:latest
+    ports:
+      - "3000:80"
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
+  gateway:
+    build: ./services/gateway
+    image: orbit-gateway:latest
+    environment:
+      PORT: "8080"
+      AUTH_URL: http://auth:4001
+      CATALOG_URL: http://catalog:4002
+      CART_URL: http://cart:4003
+      ORDERS_URL: http://orders:4004
+    depends_on:
+      - auth
+      - catalog
+      - cart
+      - orders
+    restart: unless-stopped
+
+  auth:
+    build: ./services/auth
+    image: orbit-auth:latest
+    environment:
+      PORT: "4001"
+      JWT_SECRET: ${JWT_SECRET:-dev-secret}
+      PGHOST: auth-db
+      PGUSER: ${POSTGRES_USER:-orbit}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-orbit}
+      PGDATABASE: auth
+    depends_on:
+      - auth-db
+    restart: unless-stopped
+
+  catalog:
+    build: ./services/catalog
+    image: orbit-catalog:latest
+    environment:
+      PORT: "4002"
+      PGHOST: catalog-db
+      PGUSER: ${POSTGRES_USER:-orbit}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-orbit}
+      PGDATABASE: catalog
+    depends_on:
+      - catalog-db
+    restart: unless-stopped
+
+  cart:
+    build: ./services/cart
+    image: orbit-cart:latest
+    environment:
+      PORT: "4003"
+      JWT_SECRET: ${JWT_SECRET:-dev-secret}
+      REDIS_URL: redis://cart-cache:6379
+    depends_on:
+      - cart-cache
+    restart: unless-stopped
+
+  orders:
+    build: ./services/orders
+    image: orbit-orders:latest
+    environment:
+      PORT: "4004"
+      JWT_SECRET: ${JWT_SECRET:-dev-secret}
+      PGHOST: orders-db
+      PGUSER: ${POSTGRES_USER:-orbit}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-orbit}
+      PGDATABASE: orders
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-orbit}:${RABBITMQ_PASSWORD:-orbit}@broker:5672
+    depends_on:
+      - orders-db
+      - broker
+    restart: unless-stopped
+
+  notifications:
+    build: ./services/notifications
+    image: orbit-notifications:latest
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-orbit}:${RABBITMQ_PASSWORD:-orbit}@broker:5672
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-orbit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orbit}
+      POSTGRES_DB: auth
+    volumes:
+      - auth-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  catalog-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-orbit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orbit}
+      POSTGRES_DB: catalog
+    volumes:
+      - catalog-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  orders-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-orbit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orbit}
+      POSTGRES_DB: orders
+    volumes:
+      - orders-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  cart-cache:
+    image: redis:7-alpine
+    volumes:
+      - cart-data:/data
+    restart: unless-stopped
+
+  broker:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-orbit}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-orbit}
+    ports:
+      - "15672:15672"
+    volumes:
+      - broker-data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+volumes:
+  auth-data:
+  catalog-data:
+  orders-data:
+  cart-data:
+  broker-data:
