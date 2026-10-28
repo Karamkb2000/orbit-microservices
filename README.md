@@ -45,44 +45,59 @@ orbit/
 ├── web/                 storefront UI + nginx + Dockerfile
 ├── .github/workflows/   ci.yml, cd.yml
 ├── infra/terraform/     modules: network, eks, ecr, data (rds + elasticache)
-└── k8s/                 kustomize: namespace, config, infra/, services/, ingress, hpa
+├── k8s/                 kustomize: base/ + overlays/ (dev, staging, prod)
+└── scripts/             compose.sh, minikube.sh, deploy.sh, destroy.sh, test.sh
 ```
+
+## Scripts
+| Script | What it does |
+|---|---|
+| `./scripts/compose.sh up` / `down` | run the whole app locally with Docker Compose |
+| `./scripts/minikube.sh up [env]` / `down` | deploy an overlay to a local minikube cluster |
+| `./scripts/deploy.sh <dev\|staging\|prod>` | build the AWS infra (first run) + push images + deploy that env to EKS |
+| `./scripts/destroy.sh <dev\|staging\|prod\|all>` | remove one env, or `all` to terraform-destroy everything |
+| `./scripts/test.sh <compose\|dev\|staging\|prod>` | end-to-end smoke test (register → cart → order → event) |
 
 ---
 
 ## Run locally (Docker Compose)
 ```bash
-cp .env.example .env
-docker compose up --build        # start everything
+./scripts/compose.sh up          # start everything
 # open http://localhost:3000
 docker compose logs -f notifications   # watch order events
-docker compose down              # stop (keep data)
-docker compose down -v           # stop + wipe volumes
+./scripts/compose.sh down        # stop (keep data)
+./scripts/compose.sh down -v     # stop + wipe volumes
 ```
 - Open the store at **http://localhost:3000**, register, add to cart, place an order.
 - RabbitMQ console: **http://localhost:15672** (orbit / orbit).
 
-## Deploy to AWS (Terraform)
-Provision VPC + EKS + RDS (Postgres) + ElastiCache (Redis) + ECR:
+## Environments
+`k8s/base/` holds the manifests; `k8s/overlays/{dev,staging,prod}/` set the namespace and replica count per environment:
+
+| Env | Namespace | Replicas | Autoscaling |
+|---|---|---|---|
+| dev | `orbit-dev` | 1 | — |
+| staging | `orbit-staging` | 2 | — |
+| prod | `orbit-prod` | 3 | HPA (gateway, catalog) |
+
+## Deploy to Kubernetes (local minikube)
 ```bash
-cd infra/terraform
-export TF_VAR_db_password='...'
-terraform init
-terraform plan
-terraform apply
+./scripts/minikube.sh up dev     # build images into the cluster + apply the dev overlay
+./scripts/test.sh dev            # smoke test
+minikube service web -n orbit-dev
 ```
 
-## Deploy to Kubernetes
-Local (minikube) — build the images into the cluster, then apply:
+## Deploy to AWS (EKS)
+One EKS cluster hosts all three namespaces. `deploy.sh` builds the infra on first run, pushes images to ECR, deploys the env, and exposes `web` as a public LoadBalancer:
 ```bash
-eval $(minikube docker-env)
-for s in gateway auth catalog cart orders notifications; do docker build -t orbit-$s:latest ./services/$s; done
-docker build -t orbit-web:latest ./web
-kubectl apply -k k8s/
-kubectl get pods -n orbit -w
-minikube service web -n orbit
+aws configure                              # your AWS credentials (one time)
+export TF_VAR_db_password='...'
+./scripts/deploy.sh dev                    # build cluster + deploy dev, prints the live URL
+./scripts/deploy.sh staging                # same cluster, staging namespace
+./scripts/deploy.sh prod                   # same cluster, prod namespace
+./scripts/destroy.sh all                   # tear everything down (stops billing)
 ```
-On EKS, the **CD** workflow (`.github/workflows/cd.yml`) builds and pushes images to **ECR** on push to `main`, then `kubectl apply -k k8s/` and rolls out the new images.
+On push to `main`, the **CD** workflow (`.github/workflows/cd.yml`) builds + pushes images to **ECR** and deploys the **prod** overlay (`kubectl apply -k k8s/overlays/prod`) — only once `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` secrets are set.
 
 ## Notes
 - Default dev secrets live in `.env.example` — change `JWT_SECRET` and passwords for anything real.

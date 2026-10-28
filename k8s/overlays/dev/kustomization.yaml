@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: orbit-dev
+
+resources:
+  - ../../base
+
+replicas:
+  - { name: gateway, count: 1 }
+  - { name: auth, count: 1 }
+  - { name: catalog, count: 1 }
+  - { name: cart, count: 1 }
+  - { name: orders, count: 1 }
+  - { name: notifications, count: 1 }
+  - { name: web, count: 1 }

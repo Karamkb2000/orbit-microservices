@@ -73,12 +73,12 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name "$EKS_CLUSTER" --region "$AWS_REGION"
-      - name: Deploy manifests
-        run: kubectl apply -k k8s/
+      - name: Deploy manifests (prod overlay)
+        run: kubectl apply -k k8s/overlays/prod
       - name: Roll out new images
         run: |
           REGISTRY=$(aws ecr describe-registry --query registryId --output text).dkr.ecr.$AWS_REGION.amazonaws.com
           for s in gateway auth catalog cart orders notifications web; do
-            kubectl set image deployment/$s $s=$REGISTRY/orbit-$s:$IMAGE_TAG -n orbit || true
+            kubectl set image deployment/$s $s=$REGISTRY/orbit-$s:$IMAGE_TAG -n orbit-prod || true
           done
-          kubectl rollout status deployment/gateway -n orbit
+          kubectl rollout status deployment/gateway -n orbit-prod

@@ -17,4 +17,3 @@ resources:
   - services/gateway.yaml
   - services/web.yaml
   - ingress.yaml
-  - hpa.yaml

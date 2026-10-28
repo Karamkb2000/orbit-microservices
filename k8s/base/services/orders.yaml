@@ -1,36 +1,40 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: catalog
+  name: orders
   namespace: orbit
-  labels: { app: catalog, tier: api }
+  labels: { app: orders, tier: api }
 spec:
   replicas: 2
   selector:
-    matchLabels: { app: catalog }
+    matchLabels: { app: orders }
   template:
     metadata:
-      labels: { app: catalog, tier: api }
+      labels: { app: orders, tier: api }
     spec:
       containers:
-        - name: catalog
-          image: orbit-catalogatest:latest
+        - name: orders
+          image: orbit-orders:latest
           imagePullPolicy: IfNotPresent
-          ports: [ { containerPort: 4002 } ]
+          ports: [ { containerPort: 4004 } ]
           env:
-            - { name: PORT, value: "4002" }
-            - { name: PGHOST, value: catalog-db }
-            - { name: PGDATABASE, value: catalog }
+            - { name: PORT, value: "4004" }
+            - { name: PGHOST, value: orders-db }
+            - { name: PGDATABASE, value: orders }
             - name: PGUSER
               valueFrom: { configMapKeyRef: { name: orbit-config, key: POSTGRES_USER } }
             - name: PGPASSWORD
               valueFrom: { secretKeyRef: { name: orbit-secrets, key: POSTGRES_PASSWORD } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: orbit-secrets, key: JWT_SECRET } }
+            - name: RABBITMQ_URL
+              value: amqp://orbit:orbit@broker:5672
           readinessProbe:
-            httpGet: { path: /health, port: 4002 }
+            httpGet: { path: /health, port: 4004 }
             initialDelaySeconds: 5
             periodSeconds: 5
           livenessProbe:
-            httpGet: { path: /health, port: 4002 }
+            httpGet: { path: /health, port: 4004 }
             initialDelaySeconds: 10
             periodSeconds: 10
           resources:
@@ -40,8 +44,8 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: catalog
+  name: orders
   namespace: orbit
 spec:
-  selector: { app: catalog }
-  ports: [ { port: 4002, targetPort: 4002 } ]
+  selector: { app: orders }
+  ports: [ { port: 4004, targetPort: 4004 } ]
