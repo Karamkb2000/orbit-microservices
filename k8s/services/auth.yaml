@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: auth
-          image: orbit-auth:latest
+          image: orbit-authtest:latest
           imagePullPolicy: IfNotPresent
           ports: [ { containerPort: 4001 } ]
           env:

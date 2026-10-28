@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: catalog
-          image: orbit-catalog:latest
+          image: orbit-catalogatest:latest
           imagePullPolicy: IfNotPresent
           ports: [ { containerPort: 4002 } ]
           env:

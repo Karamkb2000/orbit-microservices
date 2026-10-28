@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: notifications
-          image: orbit-notifications:latest
+          image: orbit-notificationsatest:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: RABBITMQ_URL

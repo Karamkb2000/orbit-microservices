@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: cart
-          image: orbit-cart:latest
+          image: orbit-cartatest:latest
           imagePullPolicy: IfNotPresent
           ports: [ { containerPort: 4003 } ]
           env:
